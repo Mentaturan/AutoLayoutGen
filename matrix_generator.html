@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchMatrix | 建筑空间矩阵生成器</title>
+    <style>
+        :root {
+            /* 专业配色方案 - Slate/Architectural Theme */
+            --bg-body: #f8fafc;
+            --bg-panel: #ffffff;
+            --primary: #0f172a; /* 深蓝黑 */
+            --primary-hover: #334155;
+            --accent: #3b82f6; /* 科技蓝 */
+            --danger: #ef4444;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --grid-line: #cbd5e1;
+            --cell-hover: #f1f5f9;
+            --cell-boundary: #1e293b;
+            --cell-inner: rgba(59, 130, 246, 0.15); /* 柔和的蓝色填充 */
+            --cell-inner-border: rgba(59, 130, 246, 0.3);
+            
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 防止页面整体滚动 */
+        }
+
+        /* 顶部导航栏 */
+        header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+        
+        .brand svg { width: 24px; height: 24px; }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* 主布局 */
+        .layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+        }
+
+        /* 左侧工具栏 */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .panel-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-sub);
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-body);
+            padding: 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-secondary {
+            background: white;
+            border-color: var(--border);
+            color: var(--text-main);
+        }
+        .btn-secondary:hover { background: var(--bg-body); border-color: #cbd5e1; }
+
+        .btn-danger {
+            background: #fef2f2;
+            color: var(--danger);
+            border-color: #fecaca;
+        }
+        .btn-danger:hover { background: #fee2e2; }
+
+        .btn-icon {
+            padding: 8px;
+            width: 36px;
+            height: 36px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tool-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-panel);
+            color: var(--text-sub);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover { background: var(--bg-body); color: var(--text-main); }
+        .tool-btn.active {
+            background: #eff6ff;
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .tool-btn svg { width: 20px; height: 20px; }
+        .tool-label { font-size: 0.75rem; }
+
+        /* 中央画布区域 */
+        .canvas-area {
+            flex: 1;
+            background: #f1f5f9; /* 稍微深一点的背景，突出画布 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+
+        .canvas-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            background: var(--border); /* 网格线颜色 */
+            gap: 1px; /* 形成网格线 */
+            border: 1px solid var(--border);
+            user-select: none;
+        }
+
+        .cell {
+            background: white;
+            width: 32px; /* 默认大小 */
+            height: 32px;
+            cursor: crosshair;
+            transition: background 0.1s ease;
+            position: relative;
+        }
+        
+        /* 辅助十字线（可选，这里用伪元素实现简单的悬停效果） */
+        .cell:hover {
+            background: var(--cell-hover);
+        }
+
+        .cell.boundary {
+            background: var(--cell-boundary);
+        }
+
+        .cell.inner {
+            background: var(--cell-inner);
+            box-shadow: inset 0 0 0 1px var(--cell-inner-border);
+        }
+        
+        .cell.inner.boundary {
+            background: var(--cell-boundary); /* 边界优先 */
+        }
+
+        /* 顶部浮动工具条 */
+        .floating-toolbar {
+            position: absolute;
+            top: 20px;
+            background: var(--bg-panel);
+            padding: 8px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            gap: 8px;
+            border: 1px solid var(--border);
+        }
+
+        /* 开关控件 */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .toggle-label { font-size: 0.9rem; }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Toast 通知 */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .layout { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 16px; }
+            .canvas-area { padding: 20px; }
+            .cell { width: 20px; height: 20px; } /* 移动端缩小网格 */
+            .header-actions span { display: none; } /* 隐藏按钮文字 */
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h18v18H3zM9 9h6v6H9z" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+            ArchMatrix <span style="font-weight: 300; font-size: 0.9em; opacity: 0.7;">Pro</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" id="undoBtn" title="撤销 (Ctrl+Z)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                <span>撤销</span>
+            </button>
+            <button class="btn btn-secondary" id="importBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>导入</span>
+            </button>
+            <button class="btn btn-primary" id="exportBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>导出 JSON</span>
+            </button>
+            <input type="file" id="fileInput" hidden accept=".json">
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            
+            <div class="panel-section">
+                <h3>绘图工具</h3>
+                <div class="btn-group">
+                    <button class="tool-btn active" id="toolDraw" title="绘制 (B)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                        <span class="tool-label">画笔</span>
+                    </button>
+                    <button class="tool-btn" id="toolErase" title="擦除 (E)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><line x1="17" y1="17" x2="11" y2="11"/></svg>
+                        <span class="tool-label">橡皮</span>
+                    </button>
+                </div>
+                
+                <div class="toggle-wrapper">
+                    <span class="toggle-label">实时房间预览</span>
+                    <label class="switch">
+                        <input type="checkbox" id="livePreviewToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>画布设置</h3>
+                <label style="display:block; margin-bottom:8px; font-size:0.85rem; color:var(--text-sub);">网格尺寸</label>
+                <select id="gridSizeSelect" style="width: 100%; padding: 8px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 12px;">
+                    <option value="10">10 × 10 (2m/格)</option>
+                    <option value="20" selected>20 × 20 (1m/格)</option>
+                </select>
+                <button class="btn btn-danger" id="clearBtn" style="width: 100%;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    清空画布
+                </button>
+            </div>
+
+            <div class="panel-section" style="margin-top: auto;">
+                <h3>数据统计</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">边界单元</span>
+                        <span class="stat-value" id="statBoundary">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">内部面积 (m²)</span>
+                        <span class="stat-value" id="statArea" style="color: var(--accent);">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">闭合状态</span>
+                        <span class="stat-value" id="statClosed" style="font-size: 0.9rem;">未闭合</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">网格总数</span>
+                        <span class="stat-value" id="statTotal">400</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 10px;">
+                左键绘制/擦除 | 右键快速切换 | Ctrl+Z 撤销
+            </div>
+        </aside>
+
+        <main class="canvas-area">
+            <div class="canvas-wrapper">
+                <div id="grid" class="grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        /**
+         * 状态管理与历史记录类
+         */
+        class HistoryManager {
+            constructor(limit = 20) {
+                this.limit = limit;
+                this.stack = [];
+            }
+
+            push(state) {
+                // 如果栈满了，移除最早的记录
+                if (this.stack.length >= this.limit) {
+                    this.stack.shift();
+                }
+                // 深拷贝状态
+                this.stack.push(JSON.parse(JSON.stringify(state)));
+            }
+
+            pop() {
+                return this.stack.pop();
+            }
+
+            isEmpty() {
+                return this.stack.length === 0;
+            }
+        }
+
+        /**
+         * 主应用逻辑
+         */
+        class App {
+            constructor() {
+                this.size = 20;
+                this.matrix = [];
+                this.isDrawing = false;
+                this.activeTool = 'draw'; // 'draw' or 'erase'
+                this.history = new HistoryManager();
+                this.livePreview = true;
+                
+                // DOM Elements
+                this.gridEl = document.getElementById('grid');
+                this.boundaryStat = document.getElementById('statBoundary');
+                this.areaStat = document.getElementById('statArea');
+                this.closedStat = document.getElementById('statClosed');
+                this.totalStat = document.getElementById('statTotal');
+                
+                this.init();
+            }
+
+            init() {
+                this.initMatrix(this.size);
+                this.renderGrid();
+                this.bindEvents();
+                this.updateStats();
+            }
+
+            initMatrix(size) {
+                this.size = size;
+                this.matrix = Array(size).fill().map(() => Array(size).fill(0));
+            }
+
+            saveState() {
+                this.history.push(this.matrix);
+            }
+
+            undo() {
+                if (!this.history.isEmpty()) {
+                    const prevState = this.history.pop();
+                    this.matrix = prevState; // 直接替换
+                    // 重新渲染全部格子状态（性能尚可，优化了代码复杂度）
+                    this.refreshGridState();
+                    this.updateStats();
+                    this.showToast('已撤销操作');
+                } else {
+                    this.showToast('没有更多历史记录了');
+                }
+            }
+
+            refreshGridState() {
+                const cells = this.gridEl.children;
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        const index = i * this.size + j;
+                        const cell = cells[index];
+                        if (this.matrix[i][j] === 1) {
+                            cell.classList.add('boundary');
+                        } else {
+                            cell.classList.remove('boundary');
+                        }
+                    }
+                }
+                if (this.livePreview) this.calculateInnerArea();
+            }
+
+            renderGrid() {
+                this.gridEl.innerHTML = '';
+                this.gridEl.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
+                
+                // 动态计算格子大小以适应屏幕
+                // 这里使用CSS控制，但数据层面需要对齐
+                
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = i;
+                        cell.dataset.col = j;
+                        
+                        // 鼠标按下
+                        cell.addEventListener('mousedown', (e) => {
+                            this.saveState(); // 操作前保存状态
+                            this.isDrawing = true;
+                            
+                            // 右键相当于临时切换工具
+                            if (e.button === 2) {
+                                this.handleDraw(i, j, this.activeTool === 'draw' ? 'erase' : 'draw');
+                            } else {
+                                this.handleDraw(i, j, this.activeTool);
+                            }
+                        });
+
+                        // 鼠标移入 (拖拽绘制)
+                        cell.addEventListener('mouseenter', (e) => {
+                            if (this.isDrawing) {
+                                // 检查鼠标按键状态，如果只有右键按下
+                                const isRightClick = e.buttons === 2;
+                                const tool = isRightClick ? (this.activeTool === 'draw' ? 'erase' : 'draw') : this.activeTool;
+                                this.handleDraw(i, j, tool);
+                            }
+                        });
+
+                        this.gridEl.appendChild(cell);
+                    }
+                }
+            }
+
+            handleDraw(row, col, tool) {
+                const cell = this.gridEl.children[row * this.size + col];
+                const isBoundary = this.matrix[row][col] === 1;
+
+                if (tool === 'draw' && !isBoundary) {
+                    this.matrix[row][col] = 1;
+                    cell.classList.add('boundary');
+                } else if (tool === 'erase' && isBoundary) {
+                    this.matrix[row][col] = 0;
+                    cell.classList.remove('boundary');
+                }
+                
+                // 实时更新统计和预览
+                if (this.livePreview) {
+                    // 使用防抖或简单地每次更新，20x20 足够快
+                    this.calculateInnerArea(); 
+                }
+                this.updateStats(false); // false = don't recalc area fully inside here to save perf if needed
+            }
+
+            /**
+             * 核心算法：识别内部区域
+             * 1. 复制矩阵
+             * 2. 从边缘开始洪水填充找外部区域 (0 -> 2)
+             * 3. 剩下的 0 就是内部区域
+             */
+            calculateInnerArea() {
+                // 清除之前的内部样式
+                const cells = document.querySelectorAll('.cell.inner');
+                cells.forEach(c => c.classList.remove('inner'));
+
+                // 检查是否有任何边界，如果没有，则不算闭合
+                let hasBoundary = this.matrix.flat().includes(1);
+                if (!hasBoundary) {
+                    this.updateClosedStatus(false);
+                    return 0;
+                }
+
+                // 构造用于计算的矩阵
+                const h = this.size;
+                const w = this.size;
+                let tempMatrix = this.matrix.map(row => [...row]); // 0: 空, 1: 墙
+                
+                // 洪水填充队列
+                let queue = [];
+
+                // 将所有边缘的0加入队列
+                for (let i = 0; i < h; i++) {
+                    if (tempMatrix[i][0] === 0) queue.push([i, 0]);
+                    if (tempMatrix[i][w-1] === 0) queue.push([i, w-1]);
+                }
+                for (let j = 1; j < w - 1; j++) {
+                    if (tempMatrix[0][j] === 0) queue.push([0, j]);
+                    if (tempMatrix[h-1][j] === 0) queue.push([h-1, j]);
+                }
+
+                // 执行填充：将外部的 0 标记为 2
+                const visited = new Set();
+                while (queue.length > 0) {
+                    const [r, c] = queue.shift();
+                    const key = `${r},${c}`;
+                    
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    
+                    if (r >= 0 && r < h && c >= 0 && c < w) {
+                        if (tempMatrix[r][c] === 0) {
+                            tempMatrix[r][c] = 2; // 标记为外部
+                            // 扩散
+                            queue.push([r+1, c]);
+                            queue.push([r-1, c]);
+                            queue.push([r, c+1]);
+                            queue.push([r, c-1]);
+                        }
+                    }
+                }
+
+                // 统计剩下的 0 (内部区域) 并渲染
+                let innerCount = 0;
+                let isClosed = true;
+
+                // 这里的逻辑：如果有外部填充能触及到的 0 变成了 2。
+                // 剩下的 0 就是内部。
+                // 如果根本没有内部区域（全是墙或全是外部），则 innerCount 为 0。
+                
+                // 特殊判断：如果外部水流能灌满所有非墙区域，说明没闭合？
+                // 其实只要有 0 存在，就说明有闭合区域。
+                
+                for (let i = 0; i < h; i++) {
+                    for (let j = 0; j < w; j++) {
+                        if (tempMatrix[i][j] === 0 && this.matrix[i][j] !== 1) {
+                            innerCount++;
+                            // 渲染
+                            const index = i * this.size + j;
+                            this.gridEl.children[index].classList.add('inner');
+                        }
+                    }
+                }
+
+                // 判定“是否闭合”：只有当找到了内部区域，或者整个图被填满了墙（虽然罕见），才算闭合有意义
+                // 但在建筑学定义里，如果没有围合出任何面积，就是未闭合（或者闭合区域为0）
+                this.updateClosedStatus(innerCount > 0);
+                
+                // 返回内部矩阵供导出
+                return tempMatrix.map(row => row.map(val => val === 0 ? 1 : 0)); // 0(内部)转为1，其他为0
+            }
+
+            updateClosedStatus(isClosed) {
+                if (isClosed) {
+                    this.closedStat.textContent = "已闭合";
+                    this.closedStat.style.color = "var(--success, #10b981)";
+                } else {
+                    this.closedStat.textContent = "未闭合";
+                    this.closedStat.style.color = "var(--text-sub)";
+                }
+            }
+
+            updateStats(recalcArea = true) {
+                const boundaryCount = this.matrix.flat().filter(x => x === 1).length;
+                this.boundaryStat.textContent = boundaryCount;
+                this.totalStat.textContent = this.size * this.size;
+                
+                if (recalcArea || this.livePreview) {
+                    // 如果开了实时预览，面积已经在渲染时算过了，这里只需要统计 DOM
+                    const innerCount = document.querySelectorAll('.cell.inner').length;
+                    // 实际面积 = 边界墙体 + 内部空地 (根据原需求：建筑总面积)
+                    // 或者仅仅是内部使用面积？
+                    // 原版逻辑：建筑总面积 = 边界面积 + 围合面积。
+                    // 让我们保持原版逻辑：Total Area = Boundary + Inner
+                    const totalArea = boundaryCount + innerCount;
+                    this.areaStat.textContent = totalArea;
+                }
+            }
+
+            // --- 工具方法 ---
+
+            setTool(tool) {
+                this.activeTool = tool;
+                document.getElementById('toolDraw').classList.toggle('active', tool === 'draw');
+                document.getElementById('toolErase').classList.toggle('active', tool === 'erase');
+            }
+
+            clear() {
+                this.saveState();
+                this.initMatrix(this.size);
+                this.refreshGridState();
+                this.updateStats();
+                this.showToast('画布已清空');
+            }
+
+            exportJSON() {
+                // 重新计算一次以确保准确
+                // 导出逻辑：导出“房间布局矩阵”，其中 1 代表内部区域和边界？
+                // 原版逻辑：IdentifyInnerArea 返回 1 为边界 OR 内部。
+                
+                // 让我们更专业一点：导出一个包含元数据的对象，或者保持原版纯矩阵兼容性。
+                // 为了兼容原版逻辑：导出矩阵，1=实体(墙+内部)，0=外部
+                
+                // 计算内部矩阵 (0是内部)
+                const h = this.size;
+                const w = this.size;
+                let tempMatrix = this.matrix.map(row => [...row]);
+                // ... 重复洪水填充逻辑 ... (为了代码简洁，直接利用DOM状态反推)
+                
+                // 从DOM反推最终矩阵 (这是最快的方法，因为视图已经计算好了)
+                const cells = this.gridEl.children;
+                const finalMatrix = [];
+                for(let i=0; i<h; i++){
+                    const row = [];
+                    for(let j=0; j<w; j++){
+                        const index = i*w+j;
+                        const cell = cells[index];
+                        // 如果是边界(1) 或者 内部(inner)，在导出中都算作 1 (建筑覆盖区)
+                        if(cell.classList.contains('boundary') || cell.classList.contains('inner')) {
+                            row.push(1);
+                        } else {
+                            row.push(0);
+                        }
+                    }
+                    finalMatrix.push(row);
+                }
+
+                const jsonStr = JSON.stringify(finalMatrix, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ArchMatrix_Layout_${this.size}x${this.size}_${new Date().getTime()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                this.showToast('文件导出成功');
+            }
+
+            importJSON(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (Array.isArray(data) && data.length > 0) {
+                            this.saveState();
+                            const newSize = data.length;
+                            // 简单的兼容性检查
+                            if (newSize !== 10 && newSize !== 20) {
+                                if(!confirm(`导入的矩阵大小 (${newSize}x${newSize}) 与标准预设不符，是否继续？`)) return;
+                            }
+                            
+                            this.size = newSize;
+                            // 更新UI选择框
+                            const select = document.getElementById('gridSizeSelect');
+                            if(select.querySelector(`option[value="${newSize}"]`)){
+                                select.value = newSize;
+                            }
+
+                            // 这里的导入逻辑稍微复杂，因为导出的是 (墙+内)，导入回来我们只知道覆盖区。
+                            // 无法区分墙和内部。
+                            // 假设导入的是纯边界数据？或者不仅是边界。
+                            // 既然这是“边界绘制器”，导入的应该最好是边界。
+                            // 如果导入的是实心块，我们只能把它全部当做边界处理，然后用户自己擦除内部？
+                            // 这里简化处理：将所有 1 视为边界。
+                            this.matrix = data; 
+                            
+                            this.renderGrid(); // 重建 Grid DOM (大小可能变了)
+                            this.updateStats();
+                            this.showToast('布局导入成功');
+                        }
+                    } catch (err) {
+                        this.showToast('文件格式错误', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            showToast(msg, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                if(type === 'error') toast.style.background = 'var(--danger)';
+                
+                // 图标
+                let icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+                if(type === 'error') icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+                
+                toast.innerHTML = `${icon}<span>${msg}</span>`;
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideIn 0.3s reverse forwards';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            bindEvents() {
+                // 全局鼠标抬起停止绘制
+                document.addEventListener('mouseup', () => {
+                    this.isDrawing = false;
+                });
+
+                // 禁止右键菜单
+                document.addEventListener('contextmenu', e => e.preventDefault());
+
+                // 键盘快捷键
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    if (e.key.toLowerCase() === 'b') this.setTool('draw');
+                    if (e.key.toLowerCase() === 'e') this.setTool('erase');
+                });
+
+                // 工具按钮
+                document.getElementById('toolDraw').onclick = () => this.setTool('draw');
+                document.getElementById('toolErase').onclick = () => this.setTool('erase');
+                
+                // 功能按钮
+                document.getElementById('undoBtn').onclick = () => this.undo();
+                document.getElementById('clearBtn').onclick = () => {
+                    if(confirm('确定要清空画布吗？')) this.clear();
+                };
+                
+                // 导入导出
+                document.getElementById('exportBtn').onclick = () => this.exportJSON();
+                document.getElementById('importBtn').onclick = () => document.getElementById('fileInput').click();
+                document.getElementById('fileInput').onchange = (e) => this.importJSON(e.target.files[0]);
+
+                // 设置变化
+                document.getElementById('gridSizeSelect').onchange = (e) => {
+                    this.saveState();
+                    this.size = parseInt(e.target.value);
+                    this.initMatrix(this.size);
+                    this.renderGrid();
+                    this.updateStats();
+                };
+
+                // 实时预览开关
+                document.getElementById('livePreviewToggle').onchange = (e) => {
+                    this.livePreview = e.target.checked;
+                    if (this.livePreview) {
+                        this.calculateInnerArea();
+                    } else {
+                        // 清除预览样式
+                        document.querySelectorAll('.cell.inner').forEach(c => c.classList.remove('inner'));
+                    }
+                };
+            }
+        }
+
+        // 启动应用
+        window.onload = () => new App();
+
+    </script>
+</body>
+</html>
