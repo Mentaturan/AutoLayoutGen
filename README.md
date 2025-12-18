@@ -243,7 +243,7 @@ MIT License
 
 ## 联系方式
 
-- 项目地址：[GitHub Repository URL]
+- 项目地址：[github.com/Mentaturan/AutoLayoutGen]
 - 作者：Mentat
 - 邮箱：uran0831@qq.com
 
